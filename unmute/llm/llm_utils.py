@@ -131,18 +131,24 @@ def get_openai_client(
 
 @cache
 def autoselect_model() -> str:
-    if KYUTAI_LLM_MODEL is not None:
+    if KYUTAI_LLM_MODEL is not None and KYUTAI_LLM_MODEL != "":
         return KYUTAI_LLM_MODEL
     openai_client = get_openai_client()
     # OpenAI() will complain if the API key is not set, so set a dummy string if it's None.
-    # This still makes sense when using vLLM because it doesn't care about the API key.
+    # This still makes sense when using vLLM/Koboldcpp because they don't care about the API key.
     client_sync = OpenAI(
         api_key=openai_client.api_key or "EMPTY", base_url=openai_client.base_url
     )
-    models = client_sync.models.list()
-    if len(models.data) != 1:
-        raise ValueError("There are multiple models available. Please specify one.")
-    return models.data[0].id
+    try:
+        models = client_sync.models.list()
+        if len(models.data) == 0:
+            # Koboldcpp might not list models, use a generic fallback
+            return "koboldcpp"
+        # Use first available model (works with vLLM, Koboldcpp, Ollama, etc.)
+        return models.data[0].id
+    except Exception:
+        # If /v1/models fails, use a generic model name (Koboldcpp accepts any name)
+        return "koboldcpp"
 
 
 class VLLMStream:
