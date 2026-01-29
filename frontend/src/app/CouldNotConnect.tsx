@@ -8,6 +8,7 @@ export type HealthStatus = {
   stt_up?: boolean;
   llm_up?: boolean;
   voice_cloning_up?: boolean;
+  llm_model?: string | null;
 };
 
 const renderServiceStatus = (
