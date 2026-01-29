@@ -51,24 +51,33 @@ Since the services are Docker containers, you get a reproducible environment wit
 
 While we support deploying with Docker compose and without Docker, the Docker Swarm deployment is only given to show how we deploy and scale [unmute.sh](unmute.sh). It looks a lot like the compose files, but since debugging multi-nodes applications is hard, we cannot help you debug the swarm deployment.
 
-### Hugging Face Token (for STT/TTS models)
+### Quick Setup
 
-The STT and TTS services require access to Kyutai's models on Hugging Face:
+Run the interactive setup script to configure your environment:
 
-1. Create a [Hugging Face account](https://huggingface.co/join).
-2. [Create an access token](https://huggingface.co/settings/tokens) with "Read" permission.
-
-Set your token using one of these methods:
-
-**Option A: Using a `.env` file (recommended)**
+**Windows (in WSL):**
 ```bash
-cp .env.example .env
-# Edit .env and set HUGGING_FACE_HUB_TOKEN=hf_your_token_here
+./setup.sh
 ```
 
-**Option B: Environment variable**
+**Linux/WSL:**
 ```bash
-export HUGGING_FACE_HUB_TOKEN=hf_your_token_here
+./setup.sh
+```
+
+The script will prompt you for:
+1. Your Hugging Face token (required for STT/TTS models - get one at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens))
+2. Your LLM backend choice (Koboldcpp, Ollama, OpenAI, or custom)
+
+This creates a `.env` file with your configuration.
+
+### Manual Configuration
+
+Alternatively, configure manually:
+
+```bash
+cp .env.example .env
+# Edit .env and set your HUGGING_FACE_HUB_TOKEN and LLM settings
 ```
 
 ### Start Unmute
