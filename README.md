@@ -51,18 +51,34 @@ Since the services are Docker containers, you get a reproducible environment wit
 
 While we support deploying with Docker compose and without Docker, the Docker Swarm deployment is only given to show how we deploy and scale [unmute.sh](unmute.sh). It looks a lot like the compose files, but since debugging multi-nodes applications is hard, we cannot help you debug the swarm deployment.
 
-### LLM access on Hugging Face Hub
+### Quick Setup
 
-You can use any LLM you want.
-By default, Unmute uses [Mistral Small 3.2 24B](https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506) as the LLM.
-([Gemma 3 12B](https://huggingface.co/google/gemma-3-12b-it) is also a good choice.)
-This model is freely available but requires you to accept the conditions to accept it:
+Run the interactive setup script to configure your environment:
 
-1. Create a Hugging Face account.
-2. Accept the conditions on the [Mistral Small 3.2 24B model page](https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506).
-3. [Create an access token.](https://huggingface.co/docs/hub/en/security-tokens) You can use a fine-grained token, the only permission you need to grant is "Read access to contents of all public gated repos you can access".
-   **Do not use tokens with write access when deploying publicly.** In case the server is compromised somehow, the attacker would get write access to any models/datasets/etc. you have on Hugging Face.
-4. Add the token into your `~/.bashrc` or equivalent as `export HUGGING_FACE_HUB_TOKEN=hf_...your token here...`
+**Windows (in WSL):**
+```bash
+./setup.sh
+```
+
+**Linux/WSL:**
+```bash
+./setup.sh
+```
+
+The script will prompt you for:
+1. Your Hugging Face token (required for STT/TTS models - get one at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens))
+2. Your LLM backend choice (Koboldcpp, Ollama, OpenAI, or custom)
+
+This creates a `.env` file with your configuration.
+
+### Manual Configuration
+
+Alternatively, configure manually:
+
+```bash
+cp .env.example .env
+# Edit .env and set your HUGGING_FACE_HUB_TOKEN and LLM settings
+```
 
 ### Start Unmute
 
@@ -90,13 +106,15 @@ See [Using external LLM servers](#using-external-llm-servers) for other options 
 **Step 2: Start Unmute**
 
 ```bash
-# Make sure you have the environment variable with the token:
-echo $HUGGING_FACE_HUB_TOKEN  # This should print hf_...something...
-
+# If using .env file, just run:
 docker compose up --build
+
+# Or verify your environment variable is set:
+echo $HUGGING_FACE_HUB_TOKEN  # Should print hf_...something...
 ```
 
 The website should be accessible at `http://localhost` (port 80).
+The LLM model name will be displayed in the UI header once connected.
 
 #### Using multiple GPUs
 

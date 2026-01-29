@@ -8,8 +8,11 @@ recordings/
 # only ignore voices/ in the root directory
 /voices/
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (keep .env.example as a template)
+.env
+.env.local
+.env.*.local
+!.env.example
 
 # vercel
 .vercel

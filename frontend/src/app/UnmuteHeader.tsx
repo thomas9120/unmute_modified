@@ -49,10 +49,15 @@ const ShortExplanation = () => {
   );
 };
 
-const UnmuteHeader = () => {
+const UnmuteHeader = ({ llmModel }: { llmModel?: string | null }) => {
   return (
     <div className="flex flex-col gap-2 py-2 md:py-8 items-end max-w-80 md:max-w-60 xl:max-w-80">
       <h1 className={`text-3xl ${frankRuhlLibre.className}`}>Unmute.sh</h1>
+      {llmModel && (
+        <div className="text-xs text-lightgray -mt-1">
+          LLM: <span className="text-green">{llmModel}</span>
+        </div>
+      )}
       <div className="flex items-center gap-2 -mt-1 text-xs">
         by
         <Link href="https://kyutai.org" target="_blank" rel="noopener">

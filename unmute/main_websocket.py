@@ -46,6 +46,7 @@ from unmute.kyutai_constants import (
     TTS_SERVER,
     VOICE_CLONING_SERVER,
 )
+from unmute.llm.llm_utils import autoselect_model
 from unmute.service_discovery import async_ttl_cached
 from unmute.timer import Stopwatch
 from unmute.tts.voice_cloning import clone_voice
@@ -139,6 +140,7 @@ class HealthStatus(BaseModel):
     stt_up: bool
     llm_up: bool
     voice_cloning_up: bool
+    llm_model: str | None = None
 
     @computed_field
     @property
@@ -182,11 +184,20 @@ async def _get_health(
         llm_up_res = await llm_up
         voice_cloning_up_res = await voice_cloning_up
 
+    # Get LLM model name if the LLM is up
+    llm_model = None
+    if llm_up_res:
+        try:
+            llm_model = autoselect_model()
+        except Exception as e:
+            logger.warning(f"Failed to get LLM model name: {e}")
+
     return HealthStatus(
         tts_up=tts_up_res,
         stt_up=stt_up_res,
         llm_up=llm_up_res,
         voice_cloning_up=voice_cloning_up_res,
+        llm_model=llm_model,
     )
 
 
@@ -195,6 +206,22 @@ async def get_health():
     health = await _get_health(None)
     mt.HEALTH_OK.observe(health.ok)
     return health
+
+
+class LLMInfo(BaseModel):
+    model: str
+    server_url: str
+
+
+@app.get("/v1/llm-info")
+def get_llm_info():
+    """Get information about the connected LLM backend."""
+    try:
+        model = autoselect_model()
+    except Exception as e:
+        logger.warning(f"Failed to get LLM model: {e}")
+        model = "unknown"
+    return LLMInfo(model=model, server_url=LLM_SERVER)
 
 
 @app.get("/v1/voices")
