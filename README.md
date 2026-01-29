@@ -73,11 +73,21 @@ To make sure the NVIDIA Container Toolkit is installed correctly, run:
 sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 ```
 
-If you use [meta-llama/Llama-3.2-1B](https://huggingface.co/meta-llama/Llama-3.2-1B),
-the default in `docker-compose.yml`, 16GB of GPU memory is sufficient.
+The STT and TTS services require approximately 8GB of GPU memory combined.
 If you're running into memory issues, open `docker-compose.yml` and look for `NOTE:` comments to see places that you might need to adjust.
 
-On a machine with a GPU, run:
+**Step 1: Start your LLM server**
+
+Before running Unmute, start an LLM server on your host machine. The simplest option is Koboldcpp:
+
+```bash
+# Download Koboldcpp and a GGUF model, then run:
+./koboldcpp --model /path/to/your-model.gguf --port 5001 --usecublas
+```
+
+See [Using external LLM servers](#using-external-llm-servers) for other options (Ollama, OpenAI, etc.).
+
+**Step 2: Start Unmute**
 
 ```bash
 # Make sure you have the environment variable with the token:
@@ -86,25 +96,39 @@ echo $HUGGING_FACE_HUB_TOKEN  # This should print hf_...something...
 docker compose up --build
 ```
 
+The website should be accessible at `http://localhost` (port 80).
+
 #### Using multiple GPUs
 
-On [Unmute.sh](https://unmute.sh/), we run the speech-to-text, text-to-speech, and the VLLM server on separate GPUs,
+On [Unmute.sh](https://unmute.sh/), we run the speech-to-text and text-to-speech on separate GPUs,
 which improves the latency compared to a single-GPU setup.
 The TTS latency decreases from ~750ms when running everything on a single L40S GPU to around ~450ms on [Unmute.sh](https://unmute.sh/).
 
-If you have at least three GPUs available, add this snippet to the `stt`, `tts` and `llm` services to ensure they are run on separate GPUs:
+Since the LLM runs externally on the host, you can dedicate GPU resources to the STT and TTS services.
+If you have multiple GPUs available, you can configure them in `docker-compose.yml`:
 
 ```yaml
-  stt: # Similarly for `tts` and `llm`
+  stt: # Similarly for `tts`
     # ...other configuration
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              device_ids: ['0']  # Use specific GPU
+              capabilities: [gpu]
+  tts:
+    # ...other configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']  # Use different GPU
               capabilities: [gpu]
 ```
+
+Your external LLM server (Koboldcpp, Ollama, etc.) can use a third GPU if available.
 
 
 ### Running without Docker
@@ -213,50 +237,62 @@ you'll need to restart the backend.
 
 ### Using external LLM servers
 
-The Unmute backend can be used with any OpenAI compatible LLM server. By default, the `docker-compose.yml` configures VLLM to enable a fully self-contained, local setup.
-You can modify this file to change to another external LLM, such as an OpenAI server, a local ollama setup, etc.
+The Unmute backend can be used with any OpenAI-compatible LLM server. By default, `docker-compose.yml` expects you to run an external LLM server on your host machine (no built-in LLM container).
 
-For ollama, as environment variables for the `unmute-backend` image, replace
-```yaml
-  backend:
-    image: unmute-backend:latest
-    [..]
-    environment:
-      [..]
-       - KYUTAI_LLM_URL=http://llm:8000
-```
+The backend will connect to `http://host.docker.internal:5001` by default (Koboldcpp's default port).
 
-with
-```yaml
-  backend:
-    image: unmute-backend:latest
-    [..]
-    environment:
-      [..]
-      - KYUTAI_LLM_URL=http://host.docker.internal:11434
-      - KYUTAI_LLM_MODEL=gemma3
-      - KYUTAI_LLM_API_KEY=ollama
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-```
-This points to your localhost server. Alternatively, for OpenAI, you can use
-```yaml
-  backend:
-    image: unmute-backend:latest
-    [..]
-    environment:
-      [..]
-      - KYUTAI_LLM_URL=https://api.openai.com/v1
-      - KYUTAI_LLM_MODEL=gpt-4.1
-      - KYUTAI_LLM_API_KEY=sk-..
+#### Koboldcpp (Recommended for local use)
+
+1. Download Koboldcpp from [GitHub](https://github.com/LostRuins/koboldcpp)
+2. Download a GGUF model (e.g., from [Hugging Face](https://huggingface.co/models?search=gguf))
+3. Start Koboldcpp before running docker-compose:
+   ```bash
+   # Linux/WSL
+   ./koboldcpp --model /path/to/your-model.gguf --port 5001 --usecublas
+
+   # Windows
+   koboldcpp.exe --model C:\path\to\your-model.gguf --port 5001 --usecublas
+   ```
+4. Then start Unmute:
+   ```bash
+   docker compose up --build
+   ```
+
+The OpenAI-compatible API is automatically available at `http://localhost:5001/v1/`.
+
+#### Ollama
+
+Start Ollama and pull a model:
+```bash
+ollama serve
+ollama pull llama3.2
 ```
 
-The section for vllm can then be removed, as it is no longer needed:
-```yaml
-  llm:
-    image: vllm/vllm-openai:v0.11.0
-    [..]
+Set environment variables before running docker-compose:
+```bash
+export KYUTAI_LLM_URL=http://host.docker.internal:11434
+export KYUTAI_LLM_MODEL=llama3.2
+docker compose up --build
 ```
+
+#### OpenAI API
+
+```bash
+export KYUTAI_LLM_URL=https://api.openai.com
+export KYUTAI_LLM_MODEL=gpt-4o
+export KYUTAI_LLM_API_KEY=sk-your-api-key
+docker compose up --build
+```
+
+#### Other OpenAI-compatible servers
+
+Any server with an OpenAI-compatible `/v1/chat/completions` endpoint will work:
+- LM Studio (default port 1234)
+- llama.cpp server
+- LocalAI
+- Text Generation WebUI (with `--api` flag)
+
+Set the `KYUTAI_LLM_URL` environment variable to point to your server
 
 ### Swapping the frontend
 
